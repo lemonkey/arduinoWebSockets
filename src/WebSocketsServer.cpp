@@ -664,7 +664,11 @@ void WebSocketsServerCore::handleClientData(void) {
     WSclient_t * client;
     for(uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++) {
         client = &_clients[i];
+        DEBUG_WEBSOCKETS("[WS-Server][%d][handleClientData] client is nullptr? [%d]\n", client->num, (client == nullptr));
+        // NOTE: none of the clients in the collection will be nullptr. 20250503 // GII
+        // If only one client is connected, the other 4 clients in the collection will exist, but they won't be connected. 20250503 // GII
         if(clientIsConnected(client)) {
+            DEBUG_WEBSOCKETS("[WS-Server][%d][handleClientData] client is connected\n", client->num);
             int len = client->tcp->available();
             if(len > 0) {
                 // DEBUG_WEBSOCKETS("[WS-Server][%d][handleClientData] len: %d\n", client->num, len);
@@ -685,6 +689,8 @@ void WebSocketsServerCore::handleClientData(void) {
 
             handleHBPing(client);
             handleHBTimeout(client);
+        } else {
+          DEBUG_WEBSOCKETS("[WS-Client][%d][handleClientData] WARNING: A client exists in _clients[], but is not connected! WEBSOCKETS_SERVER_CLIENT_MAX = [%d]\n", client->num, WEBSOCKETS_SERVER_CLIENT_MAX); // GII
         }
         WEBSOCKETS_YIELD();
     }
@@ -865,14 +871,33 @@ void WebSocketsServerCore::handleHeader(WSclient_t * client, String * headerLine
  * send heartbeat ping to server in set intervals
  */
 void WebSocketsServerCore::handleHBPing(WSclient_t * client) {
-    if(client->pingInterval == 0)
+
+    if(client == nullptr) {
+      DEBUG_WEBSOCKETS("[WS-Server][handleHBPing] given client is nullptr!\n"); // GII
+      return;
+    }
+
+    if(client->pingInterval == 0) {
+        DEBUG_WEBSOCKETS("[WS-Server][%d][handleHBPing] pingInterval is set to 0!\n", client->num); // GII
         return;
+    }
+
+    DEBUG_WEBSOCKETS("[WS-Server][%d][handleHBPing] pingInterval [%d]\n", client->num, client->pingInterval); // GII
+
+    DEBUG_WEBSOCKETS("[WS-Server][%d][handleHBPing] lastPing [%d]\n", client->num, client->lastPing); // GII
+
     uint32_t pi = millis() - client->lastPing;
+
+    DEBUG_WEBSOCKETS("[WS-Server][%d][handleHBPing] millis since last ping [%d]\n", client->num, pi); // GII
+
     if(pi > client->pingInterval) {
         DEBUG_WEBSOCKETS("[WS-Server][%d] sending HB ping\n", client->num);
-        if(sendPing(client->num)) {
+        bool sendPingSuccess = sendPing(client->num);
+        if(sendPingSuccess) {
             client->lastPing     = millis();
             client->pongReceived = false;
+        } else {
+          DEBUG_WEBSOCKETS("[WS-Server][%d][handleHBPing] sendPing() failed!\n", client->num); // GII
         }
     }
 }

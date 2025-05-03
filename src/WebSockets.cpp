@@ -309,7 +309,7 @@ bool WebSockets::sendFrame(WSclient_t * client, WSopcode_t opcode, uint8_t * pay
         }
     }
 
-    DEBUG_WEBSOCKETS("[WS][%d][sendFrame] sending Frame Done (%luus).\n", client->num, (micros() - start));
+    DEBUG_WEBSOCKETS("[WS][%d][sendFrame] sending Frame Done (%luus). Write success? [%d].\n", client->num, (micros() - start), ret); // GII
 
 #ifdef WEBSOCKETS_USE_BIG_MEM
     if(useInternBuffer && payloadPtr) {
